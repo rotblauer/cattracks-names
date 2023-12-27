@@ -27,8 +27,8 @@ var MatchersToAliases = func() map[string]string {
 	return m
 }()
 
-// Aliases is a map of regular expressions to cat aliases, can be used to index cats by name; all aliases are unique.
-var Aliases = func() map[*regexp.Regexp]string {
+// MatchingAliases is a map of regular expressions to cat aliases, can be used to index cats by name; all aliases are unique.
+var MatchingAliases = func() map[*regexp.Regexp]string {
 	m := make(map[*regexp.Regexp]string, len(AliasesToMatchers))
 	for r, a := range MatchersToAliases {
 		m[regexp.MustCompile(r)] = a
@@ -38,7 +38,7 @@ var Aliases = func() map[*regexp.Regexp]string {
 
 // AliasOrName returns the alias for a name, or the name if no alias is found.
 func AliasOrName(name string) string {
-	for r, a := range Aliases {
+	for r, a := range MatchingAliases {
 		if r.MatchString(name) {
 			return a
 		}
