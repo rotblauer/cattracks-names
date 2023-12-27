@@ -1,9 +1,23 @@
+/*
+
+Package main is the modify for the cattracks-names package.
+It filters the input for a name attribute and REPLACES IT with an aliased, sanitized name, writing the mutated geojson to stdout.
+If the name attribute is not found, the input is passed through unchanged.
+The name attribute (normally at properties.Name) is configurable with the --name-attribute flag.
+It reads from stdin and writes to stdout.
+
+  Rye13 -> rye
+  sofia-moto-67bd -> ia
+
+*/
+
 package main
 
 import (
 	"bufio"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -13,13 +27,20 @@ import (
 	"github.com/tidwall/sjson"
 )
 
-var flagNameAttribute = flag.String("name-attribute", "properties.Name", "Name attribute (default=properties.Name)")
-var flagSanitize = flag.Bool("sanitize", true, "Sanitize names (default=true)")
+const (
+	modifyCommand = "modify"
+	aliasCommand  = "aliases"
+)
 
-// cli is the main function for the cli.
-// It uses bufio as its RW signature because its wants to use the ReadBytes('\n') method (io.Reader does not have this convenience),
-// and to be able to Flush the writer (io.Writer does not have this convenience).
-func cli(reader *bufio.Reader, writer *bufio.Writer, nameAttr string, sanitize bool) error {
+var flagModifyNameAttribute = flag.String("name-attribute", "properties.Name", "Name attribute (default=properties.Name)")
+var flagModifySanitize = flag.Bool("sanitize", true, "Sanitize names (default=true)")
+var flagModifyPassthroughDNE = flag.Bool("passthrough-dne", false, "Whether to print incoming data that does not have an attribute-name property (default=false).")
+
+// modify modifies json Names, replacing them with canonical catnames-names.
+func modify(r io.Reader, w io.Writer, nameAttr string, sanitize, passthroughDNE bool) error {
+	reader := bufio.NewReader(r)
+	writer := bufio.NewWriter(w)
+
 	for {
 		line, err := reader.ReadBytes('\n')
 		if err != nil {
@@ -29,28 +50,59 @@ func cli(reader *bufio.Reader, writer *bufio.Writer, nameAttr string, sanitize b
 			return err
 		}
 		name := gjson.GetBytes(line, nameAttr)
-		if name.Exists() {
-			newName := names.AliasOrName(name.String())
-			if *flagSanitize {
-				newName = names.SanitizeName(newName)
+
+		// If the name attribute exists, replace it with the aliased (and optionally sanitized) name.
+		if !name.Exists() {
+			// If pass-through requested, write the original data and continue.
+			if passthroughDNE {
+				writer.Write(line)
+				writer.Flush()
 			}
-			out, err := sjson.SetBytes(line, nameAttr, newName)
-			if err != nil {
-				log.Fatalln(err)
-			}
-			writer.Write(out)
-			writer.Flush()
+			continue
 		}
+
+		// Data does have a name attribute.
+		newName := names.AliasOrName(name.String())
+
+		// Sanitize the name if requested.
+		if sanitize {
+			newName = names.SanitizeName(newName)
+		}
+
+		// Finally, the new bytes and write.
+		out, err := sjson.SetBytes(line, nameAttr, newName)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		writer.Write(out)
+		writer.Flush()
+	}
+}
+
+func aliases() {
+	for _, alias := range names.Aliases {
+		fmt.Println(alias)
 	}
 }
 
 func main() {
 	flag.Parse()
 
-	reader := bufio.NewReader(os.Stdin)
-	writer := bufio.NewWriter(os.Stdout)
+	if len(flag.Args()) == 0 {
+		log.Fatalln("no command specified")
+	}
 
-	if err := cli(reader, writer, *flagNameAttribute, *flagSanitize); err != nil {
-		log.Fatalln(err)
+	command := flag.Args()[0]
+	switch command {
+	case modifyCommand:
+		// Modify json names.
+		if err := modify(os.Stdin, os.Stdout, *flagModifyNameAttribute, *flagModifySanitize, *flagModifyPassthroughDNE); err != nil {
+			log.Fatalln(err)
+		}
+		os.Exit(0)
+	case aliasCommand:
+		// Print aliases.
+		aliases()
+		os.Exit(0)
 	}
 }

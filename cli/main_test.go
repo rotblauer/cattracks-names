@@ -29,7 +29,7 @@ func ExampleCLI() {
 
 	writer := bufio.NewWriter(os.Stdout)
 
-	err := cli(reader, writer, "properties.Name", true)
+	err := modify(reader, writer, "properties.Name", true)
 	if err != nil {
 		log.Fatalln(err)
 	}
