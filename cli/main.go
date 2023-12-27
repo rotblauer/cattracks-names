@@ -15,9 +15,9 @@ package main
 
 import (
 	"bufio"
+	"encoding/csv"
 	"errors"
 	"flag"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -79,10 +79,21 @@ func modify(r io.Reader, w io.Writer, nameAttr string, sanitize, passthroughDNE 
 	}
 }
 
-func aliases() {
-	for _, alias := range names.Aliases {
-		fmt.Println(alias)
+var flagAliasesHeader = flag.Bool("header", false, "Print CSV header (default=false)")
+var flagAliasesUseCRLF = flag.Bool("crlf", false, "Use CRLF line endings (default=false)")
+var flagAliasesUesComma = flag.String("comma", ",", "Delimiter to use (default=,)")
+
+func aliases(withHeader, useCRLF bool, comma string) {
+	csvWriter := csv.NewWriter(os.Stdout)
+	csvWriter.UseCRLF = useCRLF
+	csvWriter.Comma = []rune(comma)[0] // This will fail if comma == "", but that's ok, its clearly invalid input.
+	if withHeader {
+		csvWriter.Write([]string{"alias", "matcher"})
 	}
+	for alias, matcher := range names.AliasesToMatchers {
+		csvWriter.Write([]string{alias, matcher})
+	}
+	csvWriter.Flush()
 }
 
 func main() {
@@ -102,7 +113,7 @@ func main() {
 		os.Exit(0)
 	case aliasCommand:
 		// Print aliases.
-		aliases()
+		aliases(*flagAliasesHeader, *flagAliasesUseCRLF, *flagAliasesUesComma)
 		os.Exit(0)
 	}
 }
