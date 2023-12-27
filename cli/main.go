@@ -6,8 +6,9 @@ If the name attribute is not found, the input is passed through unchanged.
 The name attribute (normally at properties.Name) is configurable with the --name-attribute flag.
 It reads from stdin and writes to stdout.
 
-  Rye13 -> rye
-  sofia-moto-67bd -> ia
+eg.
+
+
 
 */
 
@@ -36,7 +37,7 @@ var flagModifyNameAttribute = flag.String("name-attribute", "properties.Name", "
 var flagModifySanitize = flag.Bool("sanitize", true, "Sanitize names (default=true)")
 var flagModifyPassthroughDNE = flag.Bool("passthrough-dne", false, "Whether to print incoming data that does not have an attribute-name property (default=false).")
 
-// modify modifies json Names, replacing them with canonical catnames-names.
+// modify modifies json cat tracks' Names properties (eg properties.Name), replacing them with canonical catnames-names (aliases).
 func modify(r io.Reader, w io.Writer, nameAttr string, sanitize, passthroughDNE bool) error {
 	reader := bufio.NewReader(r)
 	writer := bufio.NewWriter(w)
